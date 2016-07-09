@@ -1,0 +1,12 @@
+{
+    "server": true,
+    "datacenter": "lxd-consul",
+    "data_dir": "/consul/data",
+    "encrypt": "lohBZ1kS+zjl82JZnDjoOw==",
+    "log_level": "INFO",
+    "enable_syslog": true,
+    "skip_leave_on_interrupt": true,
+    "ui": true,
+    "client_addr": "0.0.0.0",
+    "start_join": ["ips"]
+}
