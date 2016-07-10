@@ -93,8 +93,8 @@ start(){
 
 stop(){
 	echo 'stopping consul containers...'
-	/usr/bin/lxc exec "${names[0]}" -- rc-service consul-server stop > /dev/null 2>&1
-	/usr/bin/lxc exec "${names[0]}"-- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[2]}" -- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[1]}"-- rc-service consul-server stop > /dev/null 2>&1
 	/usr/bin/lxc exec "${names[0]}" -- rc-service consul-bootstrap stop > /dev/null 2>&1
 	/usr/bin/lxc exec "${names[0]}"-- rc-service consul-server stop > /dev/null 2>&1
 	/usr/bin/lxc stop "${names[0]}" "${names[1]}" "${names[2]}" > /dev/null 2>&1
