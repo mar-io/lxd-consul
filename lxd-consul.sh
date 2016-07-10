@@ -64,11 +64,11 @@ create(){
   	echo 'lxd does not appear to be installed properly. Follow instructions here: https://linuxcontainers.org/lxd/getting-started-cli'
   fi
 
-  if ! command_exists unzip && ! command_exists wget; then
+  if ! command_exists wget || ! command_exists unzip; then
     # istall packages required
     $sh_c "apt update && apt install unzip wget -y"
   fi
-  
+
   # download consul and extract into directory
   /usr/bin/wget https://releases.hashicorp.com/consul/$version/consul_"$version"_linux_amd64.zip -O "consul_$version.zip"
   /usr/bin/unzip -o "consul_$version.zip"
@@ -92,18 +92,17 @@ create(){
   done
   
   x=0
-  echo 'Getting IP for Consul Bootstrap instance...'
+  echo 'Getting IPs for Consul containers...'
   #get the ip for consul bootstrap instance
-  while [ -z "$bootstrap_ip" ]
+  while [ -z "$bootstrap_ip" -o -z "$consul2_ip" -o -z "$consul3_ip" ]
     do
-      if [ "$x" -gt 15 ]; then echo 'Cannot get an IP for the consul instance. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
+      if [ "$x" -gt 15 ]; then echo 'Cannot get an IPs for the consul instances. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
       bootstrap_ip=$(get_consul_ip consul1)
+      consul2_ip=$(get_consul_ip consul2)
+      consul3_ip=$(get_consul_ip consul3)
       ((x++))
       sleep 2
   done
-
-  consul2_ip=$(get_consul_ip consul2)
-  consul3_ip=$(get_consul_ip consul3)
 
   # create bootstrap config with ip address
   /bin/sed s/myaddress/"$bootstrap_ip"/g config/bootstrap.json > bootstrap_consul1.json
