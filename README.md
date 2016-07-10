@@ -1,5 +1,7 @@
 # lxd-consul
 
+Want to experiment with Consul clusters or LXD containers? Look no further.
+
 lxd-consul is a bash script that will spin up a consul cluster on Ubuntu 16.04 LTS utilizing lxd containers.
 
 lxd-consul has only been tested on Ubuntu 16.04 and should be used for dev/testing purposes.
