@@ -2,6 +2,16 @@
 
 # DISCLAIMER: Only use for development or testing purposes. Only tested on Ubuntu 16.04 LTS.
 # AUTHOR: Mario Harvey https://marioharvey.com
+
+# set consul version
+consul_version='0.6.4'
+
+# set alpine os version
+alpine_version='3.4'
+
+# container names
+names=(consul1 consul2 consul3)
+
 command_exists () {
     type "$1" &> /dev/null ;
 }
@@ -37,9 +47,9 @@ get_all_ips(){
   while [ -z "$bootstrap_ip" -o -z "$consul2_ip" -o -z "$consul3_ip" ]
     do
       if [ "$x" -gt 30 ]; then echo 'Cannot get an IPs for the consul instances. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
-      bootstrap_ip=$(get_consul_ip consul1)
-      consul2_ip=$(get_consul_ip consul2)
-      consul3_ip=$(get_consul_ip consul3)
+      bootstrap_ip=$(get_consul_ip "${names[0]}")
+      consul2_ip=$(get_consul_ip "${names[1]}")
+      consul3_ip=$(get_consul_ip "${names[2]}")
       ((x++))
       sleep 2
   done
@@ -70,24 +80,24 @@ output(){
 
 start(){
 	echo 'starting consul containers...'
-	/usr/bin/lxc start consul1 consul2 consul3
+	/usr/bin/lxc start "${names[0]}" "${names[1]}" "${names[2]}"
 	if [ $? -gt 0 ]; then echo 'want a consul cluster? run: ./lxd-consul.sh create!'; exit 1; fi
     get_all_ips
     echo 'bringing up consul bootstrap container...'
-    /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start > /dev/null 2>&1
+    /usr/bin/lxc exec "${names[0]}" -- rc-service consul-bootstrap start > /dev/null 2>&1
     echo 'restarting consul server containers...'
-    /usr/bin/lxc exec consul2 -- rc-service consul-server restart > /dev/null 2>&1
-    /usr/bin/lxc exec consul3 -- rc-service consul-server restart > /dev/null 2>&1
+    /usr/bin/lxc exec "${names[1]}" -- rc-service consul-server restart > /dev/null 2>&1
+    /usr/bin/lxc exec "${names[2]}" -- rc-service consul-server restart > /dev/null 2>&1
 	output
 }
 
 stop(){
 	echo 'stopping consul containers...'
-	/usr/bin/lxc exec consul3 -- rc-service consul-server stop > /dev/null 2>&1
-	/usr/bin/lxc exec consul2 -- rc-service consul-server stop > /dev/null 2>&1
-	/usr/bin/lxc exec consul1 -- rc-service consul-bootstrap stop > /dev/null 2>&1
-	/usr/bin/lxc exec consul1 -- rc-service consul-server stop > /dev/null 2>&1
-	/usr/bin/lxc stop consul1 consul2 consul3 > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[0]}" -- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[0]}"-- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[0]}" -- rc-service consul-bootstrap stop > /dev/null 2>&1
+	/usr/bin/lxc exec "${names[0]}"-- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc stop "${names[0]}" "${names[1]}" "${names[2]}" > /dev/null 2>&1
 }
 
 restart(){
@@ -102,21 +112,12 @@ destroy(){
     stop
 	# delete containers
 	echo 'deleting consul containers...'
-	/usr/bin/lxc delete -f consul1 consul2 consul3
+	/usr/bin/lxc delete -f "${names[0]}" "${names[1]}" "${names[2]}"
 
 	echo 'lxd-consul destroyed!'
 }
 
 create(){
-  # set consul version
-  version='0.6.4'
-
-  # set alpine os version
-  os_version='3.4'
-
-  # container names
-  names=(consul1 consul2 consul3)
-  
   #check if containers exist and are already running consul
   i=0
   for name in "${names[@]}";
@@ -155,18 +156,18 @@ create(){
   fi
 
   # download consul and extract into directory
-  /usr/bin/wget https://releases.hashicorp.com/consul/$version/consul_"$version"_linux_amd64.zip -O "consul_$version.zip"
-  /usr/bin/unzip -o "consul_$version.zip"
-  /bin/rm "consul_$version.zip"
+  /usr/bin/wget https://releases.hashicorp.com/consul/$consul_version/consul_"$consul_version"_linux_amd64.zip -O "consul_$consul_version.zip"
+  /usr/bin/unzip -o "consul_$consul_version.zip"
+  /bin/rm "consul_$consul_version.zip"
   
   # get base lxd image
-  echo "copying down base Alpine $os_version image..."
-  /usr/bin/lxc image copy images:alpine/$os_version/amd64 local: --alias=alpine$os_version
+  echo "copying down base Alpine $alpine_version image..."
+  /usr/bin/lxc image copy images:alpine/$alpine_version/amd64 local: --alias=alpine$alpine_version
   
   for name in "${names[@]}";
     do
       # create containers
-      /usr/bin/lxc launch alpine$os_version "$name" -c security.privileged=true
+      /usr/bin/lxc launch alpine$alpine_version "$name" -c security.privileged=true
       # make consul dirs
       /usr/bin/lxc exec "$name" -- mkdir -p /consul/data
       /usr/bin/lxc exec "$name" -- mkdir -p /consul/server
@@ -179,17 +180,17 @@ create(){
   # create bootstrap config with ip address
   /bin/sed s/myaddress/"$bootstrap_ip"/g config/bootstrap.json > bootstrap_consul1.json
   # move in bootstrap config into container into bootstrap directory
-  /usr/bin/lxc exec consul1 -- mkdir -p /consul/bootstrap
-  /usr/bin/lxc file push bootstrap_consul1.json consul1/consul/bootstrap/
+  /usr/bin/lxc exec "${names[0]}" -- mkdir -p /consul/bootstrap
+  /usr/bin/lxc file push bootstrap_consul1.json "${names[0]}"/consul/bootstrap/
   # move in bootstrap init script and make executable
-  /usr/bin/lxc file push config/consul-bootstrap consul1/etc/init.d/
-  /usr/bin/lxc exec consul1 -- chmod 755 /etc/init.d/consul-bootstrap
+  /usr/bin/lxc file push config/consul-bootstrap "${names[0]}"/etc/init.d/
+  /usr/bin/lxc exec "${names[0]}" -- chmod 755 /etc/init.d/consul-bootstrap
   # launch bootstrap if consul not already bootstrapped
-  if /usr/bin/lxc exec consul1 -- cat /consul/data/raft/peers.json > /dev/null 2>&1; then
-    /usr/bin/lxc exec consul -- rc-service consul-bootstrap stop > /dev/null 2>&1
-    /usr/bin/lxc exec consul1 -- rc-service consul-server start
+  if /usr/bin/lxc exec "${names[0]}" -- cat /consul/data/raft/peers.json > /dev/null 2>&1; then
+    /usr/bin/lxc exec "${names[0]}" -- rc-service consul-bootstrap stop > /dev/null 2>&1
+    /usr/bin/lxc exec "${names[0]}" -- rc-service consul-server start
   else
-    /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start
+    /usr/bin/lxc exec "${names[0]}" -- rc-service consul-bootstrap start
   fi
   #create server config files
   /bin/sed s/ips/"$bootstrap_ip\", \"$consul3_ip"/g config/server.json > server_consul2.json
@@ -206,8 +207,8 @@ create(){
   done
   
   #start server nodes
-  /usr/bin/lxc exec consul2 -- rc-service consul-server start
-  /usr/bin/lxc exec consul3 -- rc-service consul-server start
+  /usr/bin/lxc exec "${names[1]}" -- rc-service consul-server start
+  /usr/bin/lxc exec "${names[2]}" -- rc-service consul-server start
   
   # cleanup
   /bin/rm bootstrap_consul1.json
