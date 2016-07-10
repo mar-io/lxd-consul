@@ -9,6 +9,7 @@ stop() {
     if ps | grep $(cat /run/consul.pid) > /dev/null 2>&1
       then
         pkill consul
+        rm /run/consul.pid
     fi
     eend $?
 }

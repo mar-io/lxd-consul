@@ -30,37 +30,9 @@ check_agent(){
 	  /usr/bin/lxc exec "$1" -- ps -ef | grep 'consul\sagent' > /dev/null 2>&1
 }
 
-
-start(){
-	echo 'starting consul containers...'
-	/usr/bin/lxc start consul1 consul2 consul3
-	if [ $? -gt 0 ]; then echo 'want a consul cluster? run: ./lxd-consul.sh create!'; exit 1; fi
-}
-
-stop(){
-	echo 'stopping consul containers...'
-	/usr/bin/lxc stop consul1 consul2 consul3 > /dev/null 2>&1
-}
-
-restart(){
-	echo 'restarting consul containers...'
-	/usr/bin/lxc restart consul1 consul2 consul3 > /dev/null 2>&1
-}
-
-destroy(){
-	echo 'destroying lxd-consul cluster...'
-	# stopping cluster
-    stop
-	# delete containers
-	echo 'deleting consul containers...'
-	/usr/bin/lxc delete -f consul1 consul2 consul3
-
-	echo 'lxd-consul destroyed!'
-}
-
 get_all_ips(){
   x=0
-  echo 'Getting IPs for Consul containers...'
+  echo 'getting IPs for Consul containers...'
   #get the ip for consul bootstrap instance
   while [ -z "$bootstrap_ip" -o -z "$consul2_ip" -o -z "$consul3_ip" ]
     do
@@ -75,7 +47,7 @@ get_all_ips(){
 
 check_one_ip(){
   x=0
-  echo 'Getting IPs for Consul containers...'
+  echo 'getting IPs for Consul containers...'
   #get the ip for consul bootstrap instance
   while [ -z "$ip" ]
     do
@@ -84,6 +56,55 @@ check_one_ip(){
       ((x++))
       sleep 2
   done
+}
+
+output(){
+	echo '              lxd-consul setup complete!           '
+	echo '***************************************************'
+	echo '                    consul ui links                ' 
+	echo "             * http://$bootstrap_ip:8500           "
+	echo "             * http://$consul2_ip:8500             "
+	echo "             * http://$consul3_ip:8500             "
+	echo '***************************************************'
+}
+
+start(){
+	echo 'starting consul containers...'
+	/usr/bin/lxc start consul1 consul2 consul3
+	if [ $? -gt 0 ]; then echo 'want a consul cluster? run: ./lxd-consul.sh create!'; exit 1; fi
+    get_all_ips
+    echo 'bringing up consul bootstrap container...'
+    /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start > /dev/null 2>&1
+    echo 'restarting consul server containers...'
+    /usr/bin/lxc exec consul2 -- rc-service consul-server restart > /dev/null 2>&1
+    /usr/bin/lxc exec consul3 -- rc-service consul-server restart > /dev/null 2>&1
+	output
+}
+
+stop(){
+	echo 'stopping consul containers...'
+	/usr/bin/lxc exec consul3 -- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec consul2 -- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc exec consul1 -- rc-service consul-bootstrap stop > /dev/null 2>&1
+	/usr/bin/lxc exec consul1 -- rc-service consul-server stop > /dev/null 2>&1
+	/usr/bin/lxc stop consul1 consul2 consul3 > /dev/null 2>&1
+}
+
+restart(){
+	echo 'restarting consul containers...'
+	stop
+	start
+}
+
+destroy(){
+	echo 'destroying lxd-consul cluster...'
+	# stopping cluster
+    stop
+	# delete containers
+	echo 'deleting consul containers...'
+	/usr/bin/lxc delete -f consul1 consul2 consul3
+
+	echo 'lxd-consul destroyed!'
 }
 
 create(){
@@ -193,13 +214,9 @@ create(){
   /bin/rm -f server_consul*
   /bin/rm consul
 
-echo '              lxd-consul setup complete!           '
-echo '***************************************************'
-echo '                    consul ui links                ' 
-echo "             * http://$bootstrap_ip:8500           "
-echo "             * http://$consul2_ip:8500             "
-echo "             * http://$consul3_ip:8500             "
-echo '***************************************************'
+  # print ips of cluster
+  output
+
 }
 
 case "$1" in
