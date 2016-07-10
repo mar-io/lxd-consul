@@ -26,15 +26,25 @@ get_consul_ip(){
 	/usr/bin/lxc info "$1" | grep 'eth0:\sinet\s' | awk 'NR == 1 { print $3 }'
 }
 
+check_agent(){
+	  /usr/bin/lxc exec "$1" -- ps -ef | grep 'consul\sagent' > /dev/null 2>&1
+}
+
 
 start(){
 	echo 'starting consul containers...'
 	/usr/bin/lxc start consul1 consul2 consul3
+	if [ $? -gt 0 ]; then echo 'want a consul cluster? run: ./lxd-consul.sh create!'; exit 1; fi
 }
 
 stop(){
 	echo 'stopping consul containers...'
 	/usr/bin/lxc stop consul1 consul2 consul3 > /dev/null 2>&1
+}
+
+restart(){
+	echo 'restarting consul containers...'
+	/usr/bin/lxc restart consul1 consul2 consul3 > /dev/null 2>&1
 }
 
 destroy(){
@@ -48,6 +58,33 @@ destroy(){
 	echo 'lxd-consul destroyed!'
 }
 
+get_all_ips(){
+  x=0
+  echo 'Getting IPs for Consul containers...'
+  #get the ip for consul bootstrap instance
+  while [ -z "$bootstrap_ip" -o -z "$consul2_ip" -o -z "$consul3_ip" ]
+    do
+      if [ "$x" -gt 30 ]; then echo 'Cannot get an IPs for the consul instances. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
+      bootstrap_ip=$(get_consul_ip consul1)
+      consul2_ip=$(get_consul_ip consul2)
+      consul3_ip=$(get_consul_ip consul3)
+      ((x++))
+      sleep 2
+  done
+}
+
+check_one_ip(){
+  x=0
+  echo 'Getting IPs for Consul containers...'
+  #get the ip for consul bootstrap instance
+  while [ -z "$ip" ]
+    do
+      if [ "$x" -gt 30 ]; then echo 'Cannot get an IPs for the consul instances. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
+      ip=$(get_consul_ip "$1")
+      ((x++))
+      sleep 2
+  done
+}
 
 create(){
   # set consul version
@@ -55,7 +92,34 @@ create(){
 
   # set alpine os version
   os_version='3.4'
+
+  # container names
+  names=(consul1 consul2 consul3)
   
+  #check if containers exist and are already running consul
+  i=0
+  for name in "${names[@]}";
+    do
+       # if constainer exists start it
+       if /usr/bin/lxc info "$name" > /dev/null 2>&1; then
+       	/usr/bin/lxc start "$name" > /dev/null 2>&1
+       	check_one_ip "$name"  > /dev/null 2>&1
+       	/usr/bin/lxc exec "$name" -- rc-service consul-server start > /dev/null 2>&1
+       fi
+       # check for running consul agents
+       if check_agent "$name" > /dev/null 2>&1; then
+       	echo "$name is already running with consul agent!"
+       	((i++))
+       fi
+  done
+
+  if [ "$i" -eq 3 ]; then
+  	echo 'Consul cluster already running on lxd containers.'
+  	echo 'You can restart or stop with ./lxd-consul.sh restart/stop'
+  	echo "Usage: $0 command {options:create,destroy,start,stop,restart}"
+  	exit 1
+  fi
+
   # check if lxc client is installed. if not exit out and tell to install
   if command_exists lxc; then
   	echo 'lxc client appears to be there. Proceeding with cluster creation...'
@@ -77,8 +141,6 @@ create(){
   # get base lxd image
   echo "copying down base Alpine $os_version image..."
   /usr/bin/lxc image copy images:alpine/$os_version/amd64 local: --alias=alpine$os_version
-
-  names=(consul1 consul2 consul3)
   
   for name in "${names[@]}";
     do
@@ -91,18 +153,7 @@ create(){
       /usr/bin/lxc file push consul "$name"/usr/bin/
   done
   
-  x=0
-  echo 'Getting IPs for Consul containers...'
-  #get the ip for consul bootstrap instance
-  while [ -z "$bootstrap_ip" -o -z "$consul2_ip" -o -z "$consul3_ip" ]
-    do
-      if [ "$x" -gt 15 ]; then echo 'Cannot get an IPs for the consul instances. Please check lxd bridge and try again. Cleaning...'; destroy; exit 2; fi
-      bootstrap_ip=$(get_consul_ip consul1)
-      consul2_ip=$(get_consul_ip consul2)
-      consul3_ip=$(get_consul_ip consul3)
-      ((x++))
-      sleep 2
-  done
+  get_all_ips
 
   # create bootstrap config with ip address
   /bin/sed s/myaddress/"$bootstrap_ip"/g config/bootstrap.json > bootstrap_consul1.json
@@ -112,8 +163,13 @@ create(){
   # move in bootstrap init script and make executable
   /usr/bin/lxc file push config/consul-bootstrap consul1/etc/init.d/
   /usr/bin/lxc exec consul1 -- chmod 755 /etc/init.d/consul-bootstrap
-  # launch bootstrap
-  /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start
+  # launch bootstrap if consul not already bootstrapped
+  if /usr/bin/lxc exec consul1 -- cat /consul/data/raft/peers.json > /dev/null 2>&1; then
+    /usr/bin/lxc exec consul -- rc-service consul-bootstrap stop > /dev/null 2>&1
+    /usr/bin/lxc exec consul1 -- rc-service consul-server start
+  else
+    /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start
+  fi
   #create server config files
   /bin/sed s/ips/"$bootstrap_ip\", \"$consul3_ip"/g config/server.json > server_consul2.json
   /bin/sed s/ips/"$bootstrap_ip\", \"$consul2_ip"/g config/server.json > server_consul3.json
@@ -159,7 +215,10 @@ case "$1" in
     stop)
       stop
       ;;
+    restart)
+      restart
+      ;;
     *) 
-      echo "Usage: $0 command {options:create,destroy,start,stop}"
+      echo "Usage: $0 command {options:create,destroy,start,stop,restart}"
       exit 1
 esac
