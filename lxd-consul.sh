@@ -53,7 +53,7 @@ create(){
   # set consul version
   version='0.6.4'
 
-  # set os version
+  # set alpine os version
   os_version='3.4'
   
   # check if lxc client is installed. if not exit out and tell to install
@@ -64,8 +64,10 @@ create(){
   	echo 'lxd does not appear to be installed properly. Follow instructions here: https://linuxcontainers.org/lxd/getting-started-cli'
   fi
 
-  # istall packages required
-  $sh_c "apt update && apt install unzip wget -y"
+  if ! command_exists unzip && ! command_exists wget; then
+    # istall packages required
+    $sh_c "apt update && apt install unzip wget -y"
+  fi
   
   # download consul and extract into directory
   /usr/bin/wget https://releases.hashicorp.com/consul/$version/consul_"$version"_linux_amd64.zip -O "consul_$version.zip"
@@ -110,7 +112,7 @@ create(){
   /usr/bin/lxc file push bootstrap_consul1.json consul1/consul/bootstrap/
   # move in bootstrap init script and make executable
   /usr/bin/lxc file push config/consul-bootstrap consul1/etc/init.d/
-  /usr/bin/lxc exec consul1 -- chmod 755 /etc/init.d/consul-bootstrap 
+  /usr/bin/lxc exec consul1 -- chmod 755 /etc/init.d/consul-bootstrap
   # launch bootstrap
   /usr/bin/lxc exec consul1 -- rc-service consul-bootstrap start
   #create server config files
@@ -124,16 +126,12 @@ create(){
     /usr/bin/lxc file push server_"$name".json $name/consul/server/
     /usr/bin/lxc file push config/consul-server $name/etc/init.d/
     /usr/bin/lxc exec $name -- chmod 755 /etc/init.d/consul-server
+    /usr/bin/lxc exec $name -- rc-update add consul-server default
   done
   
   #start server nodes
   /usr/bin/lxc exec consul2 -- rc-service consul-server start
   /usr/bin/lxc exec consul3 -- rc-service consul-server start
-  #verify cluster health
-  
-  #shutdown bootstrap on consul1
-
-  #start server on consul1
   
   # cleanup
   /bin/rm bootstrap_consul1.json

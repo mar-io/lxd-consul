@@ -1,14 +1,30 @@
 #!/sbin/openrc-run
 
+depend() {
+  need net
+}
 
 stop() {
     ebegin "Stopping consul bootstrap server"
-    pkill consul
+    if ps | grep $(cat /run/consul.pid) > /dev/null 2>&1
+      then
+        pkill consul
+    fi
     eend $?
 }
 
 start() {
   ebegin "Starting consul bootstrap server"
-  nohup /usr/bin/consul agent -config-dir /consul/bootstrap > /var/log/consul.log 2>&1 &
+  # make sure container has private ip before attempting to start consul
+  x=0
+  while [ -z "$bootstrap_ip" ]
+    do
+      if [ "$x" -gt 30 ]; then exit 2; fi
+      bootstrap_ip=$(ifconfig eth0 | grep 'inet\saddr:' | awk '{ print $2 }' | cut -f2 -d:)
+      x=$((x + 1))
+      sleep 2
+  done
+  nohup /usr/bin/consul agent -config-dir /consul/bootstrap > /var/log/consul.log 2>&1 & \
+  echo $! > /run/consul.pid
   eend $?
 }
