@@ -4,7 +4,7 @@ Want to experiment with Consul clusters or LXD containers? Look no further.
 
 lxd-consul is a bash script that will spin up a consul cluster on Ubuntu 16.04 LTS utilizing lxd containers.
 
-This script will start a 3 node consul cluster using LXD containers running Alpine Linux. Each node takes about 9MB space so its very lightweight and fast. LXD containers can be easily snapshot and pushed to other servers very easily. 
+This script will start a 3 node consul cluster using LXD containers running Alpine Linux. Each node takes about 9MB space so its very lightweight and fast. Furthermore, the consul cluster data will persist if the system or container reboots without needing to create data mounts.
 
 lxd-consul has only been tested on Ubuntu 16.04 and should be used for dev/testing purposes.
 
