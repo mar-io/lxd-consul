@@ -21,7 +21,7 @@ Clone the repo:
 Change Directory:
 `cd lxd-consul`
 
-Run the script:
+**Run** the script:
 `./lxd-consul.sh create`
 
 At this point, the script will run, create containers, and return the IPs of the cluster.
@@ -37,6 +37,12 @@ To **start** the cluster:
 To **destroy** the cluster:
 
 `./lxd-consul.sh destroy`
+
+When you reboot your computer or need to re-bootstrap the consul cluster simply run **a restart**:
+
+`./lxd-consul.sh restart`
+
+This will bring your cluster back and the data should still be persisted.
 
 #### Why LXD instead of Docker?
 
