@@ -6,7 +6,7 @@
 consul_version='0.6.4'
 
 # set alpine os version
-alpine_version='edge'
+alpine_version='3.4'
 
 # container names
 names=(consul1 consul2 consul3)
@@ -146,11 +146,11 @@ create() {
       lxc exec "$name" -- sh -c "mkdir -p /consul/data /consul/server"
   done
   
-  lxc exec "${names[0]}" -- sh -c "echo http://dl-6.alpinelinux.org/alpine/edge/main > /etc/apk/repositories && \
-  echo http://dl-5.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories && \
-  echo http://dl-4.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories && \
-  echo http://dl-3.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories && \
-  echo http://dl-2.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories && \
+  lxc exec "${names[0]}" -- sh -c "echo http://dl-6.alpinelinux.org/alpine/v3.4/main > /etc/apk/repositories && \
+  echo http://dl-5.alpinelinux.org/alpine/v3.4/main >> /etc/apk/repositories && \
+  echo http://dl-4.alpinelinux.org/alpine/v3.4/main >> /etc/apk/repositories && \
+  echo http://dl-3.alpinelinux.org/alpine/v3.4/main >> /etc/apk/repositories && \
+  echo http://dl-2.alpinelinux.org/alpine/v3.4/main >> /etc/apk/repositories && \
   apk add ca-certificates wget --no-cache && \
   update-ca-certificates && \
   wget https://releases.hashicorp.com/consul/$consul_version/consul_\"$consul_version\"_linux_amd64.zip -O consul_$consul_version.zip && \
