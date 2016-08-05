@@ -8,6 +8,8 @@ This script will start a 3 node consul cluster using LXD containers running Alpi
 
 lxd-consul has only been tested on Ubuntu 16.04 and should be used for dev/testing purposes.
 
+[![asciicast](https://asciinema.org/a/celecx9vg7qz2pjf62t741ev5.png)](https://asciinema.org/a/celecx9vg7qz2pjf62t741ev5)
+
 #### Prerequisites
 * Ubuntu 16.04 LTS
 
