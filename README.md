@@ -18,7 +18,7 @@ lxd-consul has only been tested on Ubuntu 16.04 and should be used for dev/testi
 #### Installing lxd-consul
 
 Clone the repo:
-`git clone git@github.com:badmadrad/lxd-consul.git`
+`git clone git@github.com:mr-io/lxd-consul.git`
 
 Change Directory:
 `cd lxd-consul`
